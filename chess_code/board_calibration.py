@@ -12,7 +12,6 @@
 
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -21,9 +20,15 @@ import cv2
 import numpy as np
 
 
+#anchor all saved files to the repo root, not to wherever the terminal happens to be.
+#__file__ is this file inside chess_code/; .parent = chess_code, .parent.parent = performing-project.
+#this means the calibration always saves to performing-project/calibration/ no matter where you launch,
+#so main.py and occupancy_detector.py always find it in the same place
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 #where the calibration file gets saved + loaded from. main.py and occupancy_detector.py both
 #load from the same path
-CALIBRATION_PATH = Path("calibration/board_calibration.npz")
+CALIBRATION_PATH = PROJECT_ROOT / "calibration" / "board_calibration.npz"
 
 #size of the warped (top-down) board image. I picked 800x800 because that makes each chess
 #square 100x100 pixels, which is plenty of pixels for the occupancy detector to read from

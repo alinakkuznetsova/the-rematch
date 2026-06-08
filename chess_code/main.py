@@ -5,7 +5,8 @@
 #    camera frame -> motion detector -> occupancy detector ->
 #        game state -> engine response -> renderer -> projection
 
-#Usage (must run board_calibration and occupancy_detector first to set up the calibration files):
+#Usage (must run board_calibration and occupancy_detector first to set up the calibration files;
+#run projector_calibration too so the projected pieces land on the physical board):
 #    python -m chess_code.main /opt/homebrew/bin/stockfish
 
 #Key bindings during performance:
@@ -30,6 +31,7 @@ from chess_code.occupancy_detector import OccupancyBaseline, OccupancyDetector
 from chess_code.motion_detector import MotionDetector, MotionState
 from chess_code.game_state import GameState
 from chess_code.renderer import Renderer, CANVAS_SIZE
+from chess_code.projector_calibration import ProjectorCalibration
 
 
 
@@ -45,9 +47,9 @@ ENGINE_THINK_SECONDS = 2.0
 #fits the performance length and creates real time pressure
 CLOCK_SECONDS_PER_SIDE = 5 * 60
 
-#occupancy detection threshold. needs tuning in the lab depending on lighting/board contrast
-#default matches what's in occupancy_detector.py
-OCCUPANCY_THRESHOLD = 0.15
+#occupancy detection threshold. tuned in the lab on 08/06 against the performance start position -
+#0.20 was the value where all 15 black pieces read solid (including dark-square pieces) with no false positives
+OCCUPANCY_THRESHOLD = 0.20
 
 
 
@@ -134,6 +136,7 @@ def make_projection_frame(piece_layer_rgba: np.ndarray) -> np.ndarray:
     #takes the renderer's transparent piece layer (BGRA) and composites it onto pure black
     #black background is important - the projector treats black as "emit no light", so the physical
     #board shows through and only the pieces appear as light
+    #returns an 800x800 board-space image; projector warp (if any) is applied by the caller
     alpha = piece_layer_rgba[:, :, 3:4].astype(np.float32) / 255.0
     rgb = piece_layer_rgba[:, :, :3].astype(np.float32)
     background = np.zeros((CANVAS_SIZE, CANVAS_SIZE, 3), dtype=np.float32)
@@ -215,6 +218,17 @@ def run(engine_path: str, camera_index: int = 0):
         print("Run `python -m chess_code.occupancy_detector` first.")
         return
 
+    #projector calibration is optional - if it's missing, fall back to projecting the raw
+    #800x800 board image fullscreen (you then align by physically moving the projector).
+    #if present, the projection gets warped so it lands square on the physical board.
+    try:
+        proj_cal = ProjectorCalibration.load()
+        print("Projector calibration loaded - projection will be warped onto the board.")
+    except FileNotFoundError:
+        proj_cal = None
+        print("No projector calibration found - projecting raw board image. "
+              "Run `python -m chess_code.projector_calibration` to align it in software.")
+
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
         print(f"Could not open camera {camera_index}")
@@ -232,6 +246,13 @@ def run(engine_path: str, camera_index: int = 0):
 
         cv2.namedWindow(PROJECTION_WINDOW, cv2.WINDOW_NORMAL)
         cv2.namedWindow(DEBUG_WINDOW, cv2.WINDOW_NORMAL)
+
+        #if we have projector calibration, put the projection window on the projector at the
+        #same offset used during calibration, and make it fullscreen there so the geometry matches
+        if proj_cal is not None:
+            cv2.moveWindow(PROJECTION_WINDOW, proj_cal.offset[0], proj_cal.offset[1])
+            cv2.setWindowProperty(PROJECTION_WINDOW,
+                                  cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         #start the clock for black (me) since I move first in this position
         clock.start_for(chess.BLACK)
@@ -284,6 +305,13 @@ def run(engine_path: str, camera_index: int = 0):
                 #render the white pieces onto a transparent canvas, then composite onto black for projection
                 piece_layer = renderer.render_from_board(game.board)
                 projection = make_projection_frame(piece_layer)
+                #the physical board is rotated 180 degrees from the renderer's image convention
+                #(I sit on Black's side), so flip both axes in board space before the warp
+                projection = cv2.flip(projection, -1)  # -1 = flip both axes = 180 rotation
+                #if calibrated, warp the 800x800 board image into the projector canvas so it
+                #lands aligned on the physical board. otherwise project the raw board image
+                if proj_cal is not None:
+                    projection = proj_cal.warp(projection)
                 cv2.imshow(PROJECTION_WINDOW, projection)
 
                 #the debug window (for my eyes only, not on the projector)
