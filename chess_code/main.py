@@ -178,7 +178,7 @@ def draw_status_overlay(projection_bgr: np.ndarray,
     #render the text on its own transparent layer with PIL (for the TTF font), then composite
     layer = Image.new("RGBA", (CANVAS_SIZE, CANVAS_SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
-    font = _load_font(96 if len(lines) == 1 else 84)
+    font = _load_font(84 if len(lines) == 1 else 76)
 
     #measure total block height to centre vertically
     line_heights = []
@@ -193,9 +193,11 @@ def draw_status_overlay(projection_bgr: np.ndarray,
 
     for ln, lw, lh in zip(lines, line_widths, line_heights):
         x = (CANVAS_SIZE - lw) // 2
-        #soft glow: draw a dim wider pass then the bright text, for a CRT feel
-        draw.text((x, y), ln, font=font, fill=(120, 255, 120, 120))
-        draw.text((x, y), ln, font=font, fill=(220, 255, 220, 255))
+        #readable retro text. brightness no longer needs to be crushed for detection's sake,
+        #because main.py suppresses this overlay on the single frame it reads occupancy (see
+        #the suppress_overlay flag), so the text can't interfere with piece reads.
+        draw.text((x, y), ln, font=font, fill=(90, 120, 90, 150))    #soft glow pass
+        draw.text((x, y), ln, font=font, fill=(150, 200, 150, 230))  #brighter main pass
         y += lh + gap
 
     #the projection is flipped 180 later (cv2.flip(-1)). so to make text read upright from
