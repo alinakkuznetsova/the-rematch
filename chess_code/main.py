@@ -52,9 +52,9 @@ ENGINE_THINK_SECONDS = 3.0
 #tournament time control per side, in seconds. 10 minutes each
 CLOCK_SECONDS_PER_SIDE = 10 * 60
 
-#occupancy detection threshold. tuned in the lab on 08/06 against the performance start position -
-#0.20 was the value where all 15 black pieces read solid (including dark-square pieces) with no false positives
-OCCUPANCY_THRESHOLD = 0.20
+#occupancy detection threshold. tuned in the lab against the performance start position with main lights on -
+#0.25 was the value where all 15 black pieces read solid with no false positives
+OCCUPANCY_THRESHOLD = 0.25
 
 
 
@@ -85,7 +85,7 @@ class Clock:
         self.active_side = None
 
     def toggle_pause(self) -> None:
-        #pause/resume. when resuming, reset last_tick so we don't deduct the paused time
+        #pause/resume. when resuming, reset last_tick so paused time isn't dedeucted
         if self.paused:
             self.last_tick = time.time()
             self.paused = False

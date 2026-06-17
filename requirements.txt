@@ -1,4 +1,8 @@
+#python packages
 opencv-python
 numpy
 python-chess
 Pillow
+
+# Also requires the Stockfish engine executable (https://stockfishchess.org/download/),
+# with its path passed to the program. Not a pip package.

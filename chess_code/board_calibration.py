@@ -1,3 +1,9 @@
+
+
+
+
+##########WEBCAM!!!!!!!!!!!!
+
 #This file is for the one-time setup where I click the four corners of the board
 #in the camera image, so the rest of the pipeline knows where the board is and can warp it
 #into a clean top-down square.
